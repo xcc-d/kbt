@@ -33,10 +33,6 @@ func NewK8sClient() (*K8sClient, error) {
 
 }
 
-func NewFakeK8sClient() *K8sClient {
-	return &K8sClient{ClientSet: fake.NewSimpleClientset()}
-}
-
 // NewFakeK8sClientWithObjects 返回预置了初始对象的 fake client（用于本地开发/测试）
 func NewFakeK8sClientWithObjects(objects ...runtime.Object) *K8sClient {
 	return &K8sClient{ClientSet: fake.NewSimpleClientset(objects...)}
