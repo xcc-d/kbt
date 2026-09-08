@@ -1,17 +1,35 @@
 package router
 
 import (
+	"kbt/internal/client"
 	"kbt/internal/handler"
 	"kbt/internal/service"
-	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
-func Setup() *http.ServeMux {
+type Client struct {
+	K8sClient *client.K8sClient
+}
+
+func Setup(c *Client) *gin.Engine {
+	r := gin.Default()
+
 	helloSvc := service.NewHelloService()
 	helloHand := handler.NewHelloHandler(helloSvc)
 
-	mux := http.NewServeMux()
-	mux.Handle("/hello", helloHand)
+	nsSvc := service.NewNamespaceService(c.K8sClient)
+	nsHand := handler.NewNamespaceHandler(nsSvc)
 
-	return mux
+	r.GET("/hello", helloHand.Hello)
+
+	corev1 := r.Group("/api/v1")
+	{
+		corev1.GET("/namespaces", nsHand.List)
+		corev1.GET("/namespaces/:namespace", nsHand.Get)
+		corev1.POST("/namespaces", nsHand.Create)
+		corev1.DELETE("/namespaces/:namespace", nsHand.Delete)
+	}
+
+	return r
 }
