@@ -21,6 +21,9 @@ func Setup(c *Client) *gin.Engine {
 	nsSvc := service.NewNamespaceService(c.K8sClient)
 	nsHand := handler.NewNamespaceHandler(nsSvc)
 
+	depSvc := service.NewDeploymentService(c.K8sClient)
+	depHand := handler.NewDeploymentHandler(depSvc)
+
 	r.GET("/hello", helloHand.Hello)
 
 	corev1 := r.Group("/api/v1")
@@ -29,6 +32,11 @@ func Setup(c *Client) *gin.Engine {
 		corev1.GET("/namespaces/:namespace", nsHand.Get)
 		corev1.POST("/namespaces", nsHand.Create)
 		corev1.DELETE("/namespaces/:namespace", nsHand.Delete)
+
+		corev1.GET("/namespaces/:namespace/deployments", depHand.List)
+		corev1.GET("/namespaces/:namespace/deployments/:deployment", depHand.Get)
+		corev1.POST("/namespaces/:namespace/deployments", depHand.Create)
+		corev1.DELETE("/namespaces/:namespace/deployments/:deployment", depHand.Delete)
 	}
 
 	return r
