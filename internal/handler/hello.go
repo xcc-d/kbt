@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"kbt/internal/model"
 	"kbt/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -17,5 +18,5 @@ func NewHelloHandler(svc *service.HelloService) *HelloHandler {
 func (h *HelloHandler) Hello(c *gin.Context) {
 	name := c.Query("name")
 	msg := h.svc.SayHello(name)
-	Success(c, msg)
+	model.Success(c, msg)
 }

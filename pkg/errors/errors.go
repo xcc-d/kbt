@@ -5,11 +5,13 @@ import (
 )
 
 const (
-	Success    = 200
-	Failed     = 500
-	NotFound   = 404
-	BadRequest = 400
-	Conflict   = 409
+	Success      = 200
+	Failed       = 500
+	NotFound     = 404
+	BadRequest   = 400
+	Conflict     = 409
+	Unauthorized = 401
+	Forbidden    = 403
 )
 
 type AppError struct {
@@ -35,6 +37,14 @@ func NewBadRequest(msg string) *AppError {
 
 func NewConflict(msg string) *AppError {
 	return &AppError{Code: Conflict, Message: msg}
+}
+
+func NewUnauthorized(msg string) *AppError {
+	return &AppError{Code: Unauthorized, Message: msg}
+}
+
+func NewForbidden(msg string) *AppError {
+	return &AppError{Code: Forbidden, Message: msg}
 }
 
 func FromError(err error) *AppError {
