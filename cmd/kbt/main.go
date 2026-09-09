@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"kbt/internal/middleware"
 	"kbt/internal/router"
 	"kbt/test/seed"
 	"log"
@@ -15,10 +16,14 @@ import (
 func main() {
 	// 本地开发用 fake client，并预置 seed 数据（列表接口有数据可查）
 	k8sClient := seed.NewFakeK8sClient()
+	authCfg := middleware.AuthConfig{
+		Issuer:   getEnv("KEYCLOAK_ISSUER", "http://localhost:8080/realms/kbt"),
+		ClientID: getEnv("KEYCLOAK_CLIENT_ID", "kbt-backend"),
+	}
 
-	r := router.Setup(&router.Client{
-		K8sClient: k8sClient,
-	})
+	r := router.Setup(
+		&router.Client{K8sClient: k8sClient},
+		authCfg)
 
 	addr := ":11313"
 
@@ -46,4 +51,11 @@ func main() {
 		log.Fatal("Server forced to shutdown:", err)
 	}
 	log.Println("Server exiting gracefully")
+}
+
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok && value != "" {
+		return value
+	}
+	return fallback
 }

@@ -1,4 +1,4 @@
-package handler
+package model
 
 import (
 	"net/http"
@@ -26,6 +26,15 @@ func Success(c *gin.Context, data interface{}) {
 func Fail(c *gin.Context, err error) {
 	appErr := apperr.FromError(err)
 	c.JSON(appErr.Code, Response{
+		Code:    appErr.Code,
+		Message: appErr.Message,
+		Data:    nil,
+	})
+}
+
+func FailAbort(c *gin.Context, err error) {
+	appErr := apperr.FromError(err)
+	c.AbortWithStatusJSON(appErr.Code, Response{
 		Code:    appErr.Code,
 		Message: appErr.Message,
 		Data:    nil,

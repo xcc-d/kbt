@@ -19,41 +19,41 @@ func NewNamespaceHandler(svc *service.NamespaceService) *NamespaceHandler {
 func (h *NamespaceHandler) List(g *gin.Context) {
 	list, err := h.svc.NamespaceList(g.Request.Context())
 	if err != nil {
-		Fail(g, err)
+		model.Fail(g, err)
 		return
 	}
-	Success(g, list)
+	model.Success(g, list)
 }
 
 func (h *NamespaceHandler) Get(g *gin.Context) {
 	name := g.Param("namespace")
 	ns, err := h.svc.NamespaceGet(g.Request.Context(), name)
 	if err != nil {
-		Fail(g, err)
+		model.Fail(g, err)
 		return
 	}
-	Success(g, ns)
+	model.Success(g, ns)
 }
 
 func (h *NamespaceHandler) Create(g *gin.Context) {
 	var req model.Namespace
 	if err := g.ShouldBindJSON(&req); err != nil {
-		Fail(g, apperr.NewBadRequest("name is required"))
+		model.Fail(g, apperr.NewBadRequest("name is required"))
 		return
 	}
 	create, err := h.svc.NamespaceCreate(g.Request.Context(), &req)
 	if err != nil {
-		Fail(g, err)
+		model.Fail(g, err)
 		return
 	}
-	Success(g, create)
+	model.Success(g, create)
 }
 
 func (h *NamespaceHandler) Delete(g *gin.Context) {
 	err := h.svc.NamespaceDelete(g.Request.Context(), g.Param("namespace"))
 	if err != nil {
-		Fail(g, err)
+		model.Fail(g, err)
 		return
 	}
-	Success(g, nil)
+	model.Success(g, nil)
 }
