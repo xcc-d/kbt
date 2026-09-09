@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"kbt/internal/router"
+	"kbt/test/seed"
 	"log"
 	"net/http"
 	"os"
@@ -12,17 +13,23 @@ import (
 )
 
 func main() {
-	mux := router.Setup()
+	// 本地开发用 fake client，并预置 seed 数据（列表接口有数据可查）
+	k8sClient := seed.NewFakeK8sClient()
+
+	r := router.Setup(&router.Client{
+		K8sClient: k8sClient,
+	})
+
 	addr := ":11313"
 
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: mux,
+		Handler: r,
 	}
 
 	go func() {
 		log.Println("Starting server... ")
-		if err := http.ListenAndServe(addr, mux); err != nil {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("Server failed", err)
 		}
 	}()

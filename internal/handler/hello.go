@@ -2,7 +2,8 @@ package handler
 
 import (
 	"kbt/internal/service"
-	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type HelloHandler struct {
@@ -13,11 +14,8 @@ func NewHelloHandler(svc *service.HelloService) *HelloHandler {
 	return &HelloHandler{svc: svc}
 }
 
-func (h *HelloHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	name := r.URL.Query().Get("name")
+func (h *HelloHandler) Hello(c *gin.Context) {
+	name := c.Query("name")
 	msg := h.svc.SayHello(name)
-	_, err := w.Write([]byte(msg))
-	if err != nil {
-		return
-	}
+	Success(c, msg)
 }
