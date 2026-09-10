@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	apperr "kbt/pkg/errors"
+	"kbt/pkg/utils"
 
 	"kbt/internal/client"
 
+	"go.uber.org/zap"
 	appv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -29,16 +31,38 @@ func (d *DeploymentService) DeploymentGet(ctx context.Context, namespace, name s
 func (d *DeploymentService) DeploymentCreate(ctx context.Context, yamlFile []byte) error {
 	var dep appv1.Deployment
 	if err := yaml.Unmarshal(yamlFile, &dep); err != nil {
+		utils.Biz(ctx, "create", "deployment", "").Fail(err)
 		return apperr.NewBadRequest("invalid yaml")
 	}
 
 	if dep.Namespace == "" || dep.Name == "" {
+		utils.Biz(ctx, "create", "deployment", dep.Name).Fail(apperr.NewBadRequest("namespace or name is empty"))
 		return apperr.NewBadRequest("namespace or name is empty")
 	}
 
-	return d.K8sClient.DeploymentCreate(ctx, dep)
+	if err := d.K8sClient.DeploymentCreate(ctx, dep); err != nil {
+		utils.Biz(ctx, "create", "deployment", dep.Name).
+			WithExtra(zap.String("namespace", dep.Namespace)).
+			Fail(err)
+		return err
+	}
+
+	utils.Biz(ctx, "create", "deployment", dep.Name).
+		WithExtra(zap.String("namespace", dep.Namespace)).
+		Success()
+	return nil
 }
 
 func (d *DeploymentService) DeploymentDelete(ctx context.Context, namespace, name string) error {
-	return d.K8sClient.DeploymentDelete(ctx, namespace, name)
+	if err := d.K8sClient.DeploymentDelete(ctx, namespace, name); err != nil {
+		utils.Biz(ctx, "delete", "deployment", name).
+			WithExtra(zap.String("namespace", namespace)).
+			Fail(err)
+		return err
+	}
+
+	utils.Biz(ctx, "delete", "deployment", name).
+		WithExtra(zap.String("namespace", namespace)).
+		Success()
+	return nil
 }
