@@ -14,6 +14,8 @@ type ctxKey string
 
 const claimsKey ctxKey = "auth_claims"
 
+const UserContextKey = "username"
+
 type AuthConfig struct {
 	Issuer   string
 	ClientID string
@@ -84,12 +86,14 @@ func (m *AuthMiddleware) Authenticate() gin.HandlerFunc {
 			Role:     claims.RealmAccess.Roles,
 		})
 
+		ctx := context.WithValue(c.Request.Context(), UserContextKey, claims.Username)
+		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	}
 }
 
 func GetClaims(c *gin.Context) *Claims {
-	if claims, ok := c.Get(claimsKey); ok {
+	if claims, ok := c.Get(string(claimsKey)); ok {
 		if claims, ok := claims.(*Claims); ok {
 			return claims
 		}
