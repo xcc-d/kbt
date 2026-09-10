@@ -5,7 +5,9 @@ import (
 	"kbt/internal/handler"
 	"kbt/internal/middleware"
 	"kbt/internal/service"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -14,7 +16,18 @@ type Client struct {
 }
 
 func Setup(c *Client, authCfg middleware.AuthConfig) *gin.Engine {
-	r := gin.Default()
+	r := gin.New()
+
+	r.Use(gin.Recovery())
+	r.Use(middleware.AccessLog())
+	r.Use(cors.New(cors.Config{
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
+		AllowAllOrigins:  true,
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	helloSvc := service.NewHelloService()
 	helloHand := handler.NewHelloHandler(helloSvc)
