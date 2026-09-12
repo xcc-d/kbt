@@ -1,25 +1,23 @@
 package router
 
 import (
-	"kbt/internal/client"
 	"kbt/internal/handler"
 	"kbt/internal/middleware"
+	"kbt/internal/model"
 	"kbt/internal/service"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-type Client struct {
-	K8sClient *client.K8sClient
-}
-
-func Setup(c *Client, authCfg middleware.AuthConfig) *gin.Engine {
+func Setup(c *model.Client, authCfg middleware.AuthConfig) *gin.Engine {
 	r := gin.New()
 
 	r.Use(gin.Recovery())
 	r.Use(middleware.AccessLog())
+	r.Use(middleware.Metrics())
 	r.Use(cors.New(cors.Config{
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
@@ -38,12 +36,17 @@ func Setup(c *Client, authCfg middleware.AuthConfig) *gin.Engine {
 	depSvc := service.NewDeploymentService(c.K8sClient)
 	depHand := handler.NewDeploymentHandler(depSvc)
 
+	healthHand := handler.NewHealthHandler(c)
+
 	auth, err := middleware.NewAuthMiddleware(authCfg)
 	if err != nil {
 		panic("failed to init auth middleware: " + err.Error())
 	}
 
 	r.GET("/hello", helloHand.Hello)
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	r.GET("/healthz", healthHand.Healthz)
+	r.GET("/readyz", healthHand.Readyz)
 
 	corev1 := r.Group("/api/v1")
 	corev1.Use(auth.Authenticate())

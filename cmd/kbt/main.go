@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"kbt/internal/middleware"
+	"kbt/internal/model"
 	"kbt/internal/router"
 	"kbt/pkg/utils"
 	"kbt/test/seed"
@@ -27,7 +28,7 @@ func main() {
 	}
 
 	r := router.Setup(
-		&router.Client{K8sClient: k8sClient},
+		&model.Client{K8sClient: k8sClient},
 		authCfg)
 
 	addr := ":18080"
