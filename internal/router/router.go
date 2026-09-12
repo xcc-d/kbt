@@ -1,6 +1,7 @@
 package router
 
 import (
+	"kbt/internal/audit"
 	"kbt/internal/handler"
 	"kbt/internal/middleware"
 	"kbt/internal/model"
@@ -12,7 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func Setup(c *model.Client, authCfg middleware.AuthConfig) *gin.Engine {
+func Setup(c *model.Client, audit *audit.Recorder, authCfg middleware.AuthConfig) *gin.Engine {
 	r := gin.New()
 
 	r.Use(gin.Recovery())
@@ -33,8 +34,11 @@ func Setup(c *model.Client, authCfg middleware.AuthConfig) *gin.Engine {
 	nsSvc := service.NewNamespaceService(c.K8sClient)
 	nsHand := handler.NewNamespaceHandler(nsSvc)
 
-	depSvc := service.NewDeploymentService(c.K8sClient)
+	depSvc := service.NewDeploymentService(c.K8sClient, audit)
 	depHand := handler.NewDeploymentHandler(depSvc)
+
+	audSvc := service.NewAuditService(c.DB)
+	audHand := handler.NewAuditHandler(audSvc)
 
 	healthHand := handler.NewHealthHandler(c)
 
@@ -60,11 +64,14 @@ func Setup(c *model.Client, authCfg middleware.AuthConfig) *gin.Engine {
 		write := corev1.Group("")
 		write.Use(auth.IsAdmin())
 		{
+			write.GET("/audit-logs", audHand.List)
+
 			write.POST("/namespaces", nsHand.Create)
 			write.DELETE("/namespaces/:namespace", nsHand.Delete)
 
 			write.POST("/namespaces/:namespace/deployments", depHand.Create)
 			write.DELETE("/namespaces/:namespace/deployments/:deployment", depHand.Delete)
+			write.PATCH("/namespaces/:namespace/deployments/:deployment", depHand.Patch)
 		}
 
 	}

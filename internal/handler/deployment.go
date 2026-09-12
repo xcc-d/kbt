@@ -76,3 +76,23 @@ func (d *DeploymentHandler) Delete(g *gin.Context) {
 	}
 	model.Success(g, nil)
 }
+
+func (d *DeploymentHandler) Patch(g *gin.Context) {
+	namespace := g.Param("namespace")
+	name := g.Param("deployment")
+	body, err := io.ReadAll(g.Request.Body)
+	if err != nil {
+		model.Fail(g, apperr.NewBadRequest("failed read body"))
+		return
+	}
+	if len(body) == 0 {
+		model.Fail(g, apperr.NewBadRequest("empty body"))
+	}
+
+	patch, err := d.svc.DeploymentPatch(g.Request.Context(), namespace, name, body)
+	if err != nil {
+		model.Fail(g, err)
+		return
+	}
+	model.Success(g, patch)
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"kbt/internal/model"
 	apperr "kbt/pkg/errors"
+	"kbt/pkg/utils"
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -87,6 +88,8 @@ func (m *AuthMiddleware) Authenticate() gin.HandlerFunc {
 		})
 
 		ctx := context.WithValue(c.Request.Context(), UserContextKey, claims.Username)
+		ctx = context.WithValue(ctx, utils.ClientIPContextKey, c.ClientIP())
+		ctx = context.WithValue(ctx, utils.UserAgentContextKey, c.Request.UserAgent())
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	}
