@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"kbt/internal/audit"
 	apperr "kbt/pkg/errors"
 	"kbt/pkg/utils"
 
@@ -14,10 +15,11 @@ import (
 
 type DeploymentService struct {
 	K8sClient *client.K8sClient
+	Recorder  *audit.Recorder
 }
 
-func NewDeploymentService(k8sClient *client.K8sClient) *DeploymentService {
-	return &DeploymentService{K8sClient: k8sClient}
+func NewDeploymentService(k8sClient *client.K8sClient, recorder *audit.Recorder) *DeploymentService {
+	return &DeploymentService{K8sClient: k8sClient, Recorder: recorder}
 }
 
 func (d *DeploymentService) DeploymentList(ctx context.Context, namespace string) ([]string, error) {
@@ -65,4 +67,54 @@ func (d *DeploymentService) DeploymentDelete(ctx context.Context, namespace, nam
 		WithExtra(zap.String("namespace", namespace)).
 		Success()
 	return nil
+}
+
+func (d *DeploymentService) DeploymentPatch(ctx context.Context, namespace, name string, path []byte) (*appv1.Deployment, error) {
+	before, err := d.K8sClient.DeploymentGet(ctx, namespace, name)
+	if err != nil {
+		utils.Biz(ctx, "update", "deployment", name).
+			WithExtra(zap.String("namespace", namespace)).
+			Fail(err)
+		return nil, err
+	}
+
+	after, err := d.K8sClient.DeploymentPatch(ctx, namespace, name, path)
+	if err != nil {
+		d.Recorder.Record(&audit.Entry{
+			Operator:     utils.UserFromCtx(ctx),
+			Action:       "update",
+			Resource:     "deployment",
+			ResourceName: name,
+			Namespace:    namespace,
+			Result:       "failed",
+			ErrorMsg:     err.Error(),
+			Before:       before,
+			After:        nil,
+			ClientIP:     utils.ClientIPFromCtx(ctx),
+			UserAgent:    utils.UserAgentFromCtx(ctx),
+		})
+		utils.Biz(ctx, "update", "deployment", name).
+			WithExtra(zap.String("namespace", namespace)).
+			Fail(err)
+		return nil, err
+	}
+
+	d.Recorder.Record(&audit.Entry{
+		Operator:     utils.UserFromCtx(ctx),
+		Action:       "update",
+		Resource:     "deployment",
+		ResourceName: name,
+		Namespace:    namespace,
+		Result:       "success",
+		Before:       before,
+		After:        after,
+		ClientIP:     utils.ClientIPFromCtx(ctx),
+		UserAgent:    utils.UserAgentFromCtx(ctx),
+	})
+
+	utils.Biz(ctx, "update", "deployment", name).
+		WithExtra(zap.String("namespace", namespace)).
+		Success()
+	return after, nil
+
 }

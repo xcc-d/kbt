@@ -1,25 +1,24 @@
 package router
 
 import (
-	"kbt/internal/client"
+	"kbt/internal/audit"
 	"kbt/internal/handler"
 	"kbt/internal/middleware"
+	"kbt/internal/model"
 	"kbt/internal/service"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-type Client struct {
-	K8sClient *client.K8sClient
-}
-
-func Setup(c *Client, authCfg middleware.AuthConfig) *gin.Engine {
+func Setup(c *model.Client, audit *audit.Recorder, authCfg middleware.AuthConfig) *gin.Engine {
 	r := gin.New()
 
 	r.Use(gin.Recovery())
 	r.Use(middleware.AccessLog())
+	r.Use(middleware.Metrics())
 	r.Use(cors.New(cors.Config{
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
@@ -35,8 +34,13 @@ func Setup(c *Client, authCfg middleware.AuthConfig) *gin.Engine {
 	nsSvc := service.NewNamespaceService(c.K8sClient)
 	nsHand := handler.NewNamespaceHandler(nsSvc)
 
-	depSvc := service.NewDeploymentService(c.K8sClient)
+	depSvc := service.NewDeploymentService(c.K8sClient, audit)
 	depHand := handler.NewDeploymentHandler(depSvc)
+
+	audSvc := service.NewAuditService(c.DB)
+	audHand := handler.NewAuditHandler(audSvc)
+
+	healthHand := handler.NewHealthHandler(c)
 
 	auth, err := middleware.NewAuthMiddleware(authCfg)
 	if err != nil {
@@ -44,6 +48,9 @@ func Setup(c *Client, authCfg middleware.AuthConfig) *gin.Engine {
 	}
 
 	r.GET("/hello", helloHand.Hello)
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	r.GET("/healthz", healthHand.Healthz)
+	r.GET("/readyz", healthHand.Readyz)
 
 	corev1 := r.Group("/api/v1")
 	corev1.Use(auth.Authenticate())
@@ -57,11 +64,14 @@ func Setup(c *Client, authCfg middleware.AuthConfig) *gin.Engine {
 		write := corev1.Group("")
 		write.Use(auth.IsAdmin())
 		{
+			write.GET("/audit-logs", audHand.List)
+
 			write.POST("/namespaces", nsHand.Create)
 			write.DELETE("/namespaces/:namespace", nsHand.Delete)
 
 			write.POST("/namespaces/:namespace/deployments", depHand.Create)
 			write.DELETE("/namespaces/:namespace/deployments/:deployment", depHand.Delete)
+			write.PATCH("/namespaces/:namespace/deployments/:deployment", depHand.Patch)
 		}
 
 	}

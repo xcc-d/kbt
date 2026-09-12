@@ -6,7 +6,11 @@ import (
 	"go.uber.org/zap"
 )
 
-const UserContextKey = "username"
+const (
+	UserContextKey      = "username"
+	ClientIPContextKey  = "client_ip"
+	UserAgentContextKey = "user_agent"
+)
 
 type BizLogger struct {
 	logger       *zap.Logger
@@ -52,4 +56,19 @@ func (b *BizLogger) Success() {
 func (b *BizLogger) Fail(err error) {
 	fields := append(b.fields(), zap.Error(err))
 	b.logger.Error("biz", fields...)
+}
+
+func UserFromCtx(ctx context.Context) string {
+	user, _ := ctx.Value(UserContextKey).(string)
+	return user
+}
+
+func ClientIPFromCtx(ctx context.Context) string {
+	ip, _ := ctx.Value(ClientIPContextKey).(string)
+	return ip
+}
+
+func UserAgentFromCtx(ctx context.Context) string {
+	ua, _ := ctx.Value(UserAgentContextKey).(string)
+	return ua
 }

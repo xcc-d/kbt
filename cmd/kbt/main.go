@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"kbt/internal/audit"
+	"kbt/internal/client"
 	"kbt/internal/middleware"
+	"kbt/internal/model"
 	"kbt/internal/router"
 	"kbt/pkg/utils"
 	"kbt/test/seed"
@@ -25,9 +28,36 @@ func main() {
 		Issuer:   getEnv("KEYCLOAK_ISSUER", "http://localhost:8080/realms/kbt"),
 		ClientID: getEnv("KEYCLOAK_CLIENT_ID", "kbt-backend"),
 	}
+	gormDB, err := client.NewMysqlClient(client.DbConfig{
+		Host:                  getEnv("MYSQL_HOST", "127.0.0.1"),
+		Port:                  3306,
+		Username:              getEnv("MYSQL_USER", "root"),
+		Password:              getEnv("MYSQL_PASSWORD", "root123"),
+		Database:              getEnv("MYSQL_DATABASE", "kbt"),
+		MaxIdleConnections:    5,
+		MaxOpenConnections:    20,
+		MaxConnectionLifeTime: time.Hour,
+	})
+	if err != nil {
+		utils.L().Error("connect mysql failed:", zap.Error(err))
+	}
+
+	if err := gormDB.AutoMigrate(&model.AuditLog{}); err != nil {
+		utils.L().Error("auto migrate failed: ", zap.Error(err))
+	}
+
+	secretKey, err := audit.LoadSecretKey()
+	if err != nil {
+		utils.L().Error("load secret key failed:", zap.Error(err))
+	}
+
+	recorder := audit.NewRecorder(gormDB, secretKey, 1024)
 
 	r := router.Setup(
-		&router.Client{K8sClient: k8sClient},
+		&model.Client{K8sClient: k8sClient,
+			DB: gormDB,
+		},
+		recorder,
 		authCfg)
 
 	addr := ":18080"

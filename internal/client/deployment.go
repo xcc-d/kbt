@@ -7,6 +7,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func (c *K8sClient) DeploymentList(ctx context.Context, namespace string) ([]string, error) {
@@ -43,4 +44,12 @@ func (c *K8sClient) DeploymentDelete(ctx context.Context, namespace, name string
 		return apperr.FromError(err)
 	}
 	return nil
+}
+
+func (c *K8sClient) DeploymentPatch(ctx context.Context, namespace, name string, path []byte) (*appsv1.Deployment, error) {
+	patch, err := c.ClientSet.AppsV1().Deployments(namespace).Patch(ctx, name, types.MergePatchType, path, metav1.PatchOptions{})
+	if err != nil {
+		return nil, apperr.FromError(err)
+	}
+	return patch, nil
 }
